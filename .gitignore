@@ -1,0 +1,25 @@
+#
+# .gitignore
+#
+
+## BACKUP & TEMPORARY FILES ##
+
+*~
+*.bak
+*.tmp
+*.swp
+
+
+## BUILD ARTIFACTS ##
+
+acarsserv
+*.o
+build/
+/build/
+build-*/
+/build-*/
+
+
+## PROGRAM EXECUTION ARTIFACTS ##
+
+*.sqb
