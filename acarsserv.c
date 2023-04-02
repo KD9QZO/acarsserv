@@ -109,7 +109,7 @@ static void processpkt(acarsmsg_t *msg, char *ipaddr) {
 	strtok(msg->no, " ");
 
 	lm = 0;
-	if (msg->mode < 0x5d && pr && pf) {
+	if ((msg->mode < 0x5d) && pr && pf) {
 		lm = 1;
 	}
 
@@ -302,7 +302,8 @@ int main(int argc, char *argv[]) {
 		char ipaddr[INET6_ADDRSTRLEN];
 		struct sockaddr_in6 src_addr;
 		socklen_t addrlen;
-		char *mpt, *bpt;
+		char *mpt;
+		char *bpt;
 
 		msg = calloc(sizeof(acarsmsg_t), 1);
 
@@ -429,18 +430,17 @@ int main(int argc, char *argv[]) {
 			strncpy(msg->txt, mpt, 220);
 			msg->txt[220] = '\0';
 
-
 			fixreg(msg->reg, reg);
 
 			tmp.tm_isdst = 0;
 			tmp.tm_mon -= 1;
 			tmp.tm_year -= 1900;
 			msg->tm = timegm(&tmp);
-
 		} else {
 			json_obj = cJSON_Parse(pkt);
-			if (json_obj == NULL)
+			if (json_obj == NULL) {
 				goto out;
+			}
 
 			if (cJSON_HasObjectItem(json_obj, "timestamp")) {
 				cJSON *j_timestamp = cJSON_GetObjectItem(json_obj, "timestamp");
@@ -502,10 +502,11 @@ int main(int argc, char *argv[]) {
 
 			if (cJSON_HasObjectItem(json_obj, "ack")) {
 				cJSON *j_ack = cJSON_GetObjectItem(json_obj, "ack");
-				if (cJSON_IsFalse(j_ack))
+				if (cJSON_IsFalse(j_ack)) {
 					msg->ack = 0x15;
-				else
+				} else {
 					msg->ack = j_ack->valuestring[0];
+				}
 			}
 
 			if (cJSON_HasObjectItem(json_obj, "tail")) {
