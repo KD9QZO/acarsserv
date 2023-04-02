@@ -1,3 +1,8 @@
+/**
+ * \file acarsserv.c
+ * \brief ACARS message server
+ */
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -10,40 +15,36 @@
 #include "acarsserv.h"
 #include "cJSON.h"
 
+
+#define DFLTFILE "acarsserv.sqb"
+#define DFLTADDR "[::]"
 #define DFLTPORT "5555"
 
-const char *regpre1[] =
-    { "C", "B", "F", "D", "2", "I", "P", "M", "G", "Z", "" };
+
+const char *regpre1[] = {
+	"C", "B", "F", "D", "2", "I", "P", "M", "G", "Z", ""
+};
+
 const char *regpre2[] = {
-	"YA", "ZA", "7T", "C3", "D2", "VP", "V2", "LV", "LQ", "EK", "P4", "VH",
-	    "OE", "4K", "C6",
-	"S2", "8P", "EW", "OO", "V3", "TY", "VQ", "A5", "CP", "T9", "E7", "A2",
-	    "PP", "PR", "PT",
-	"PU", "V8", "LZ", "XT", "9U", "XU", "TJ", "D4", "TL", "TT", "CC", "HJ",
-	    "HK", "D6", "TN",
-	"E5", "9Q", "TI", "TU", "9A", "CU", "5B", "OK", "OY", "J2", "J7", "HI",
-	    "4W", "HC", "SU",
-	"YS", "3C", "E3", "ES", "ET", "DQ", "OH", "TR", "C5", "4L", "9G", "SX",
-	    "J3", "TG", "3X",
-	"J5", "8R", "HH", "HR", "HA", "TF", "VT", "PK", "EP", "YI", "EI", "EJ", 
-            "4X", "6Y", "ZJ", "JY", "Z6",
-	"UP", "5Y", "T3", "9K", "EX", "YL", "OD", "7P", "A8", "5A", "HB",
-	    "LY", "LX", "Z3",
-	"5R", "7Q", "9M", "8Q", "TZ", "9H", "V7", "5T", "3B", "XA", "XB", "XC",
-	    "V6", "ER", "3A",
-	"JU", "4O", "CN", "C9", "XY", "XZ", "V5", "C2", "9N", "PH", "PJ", "ZK",
-	    "ZL", "ZM", "YN", "5U", "LN",
-	"AP", "SU", "E4", "HP", "P2", "ZP", "OB", "RP", "SP", "SN", "CR",
-	    "CS", "A7", "YR",
-	"RA", "RF", "V4", "J6", "J8", "5W", "T7", "S9", "HZ", "6V", "6W", "YU", "S7",
-	    "9L", "9V", "OM",
-	"S5", "H4", "6O", "ZS", "ZT", "ZU", "Z8", "EC", "4R", "ST", "PZ", "SE",
-	    "HB", "YK", "EY",
-	"5H", "HS", "5V", "A3", "9Y", "TS", "TC", "EZ", "T2", "5X", "UR", "A6",
-	    "4U", "CX", 
+	"YA", "ZA", "7T", "C3", "D2", "VP", "V2", "LV", "LQ", "EK", "P4", "VH", "OE", "4K", "C6",
+	"S2", "8P", "EW", "OO", "V3", "TY", "VQ", "A5", "CP", "T9", "E7", "A2", "PP", "PR", "PT",
+	"PU", "V8", "LZ", "XT", "9U", "XU", "TJ", "D4", "TL", "TT", "CC", "HJ", "HK", "D6", "TN",
+	"E5", "9Q", "TI", "TU", "9A", "CU", "5B", "OK", "OY", "J2", "J7", "HI", "4W", "HC", "SU",
+	"YS", "3C", "E3", "ES", "ET", "DQ", "OH", "TR", "C5", "4L", "9G", "SX", "J3", "TG", "3X",
+	"J5", "8R", "HH", "HR", "HA", "TF", "VT", "PK", "EP", "YI", "EI", "EJ", "4X", "6Y", "ZJ", "JY", "Z6",
+	"UP", "5Y", "T3", "9K", "EX", "YL", "OD", "7P", "A8", "5A", "HB", "LY", "LX", "Z3",
+	"5R", "7Q", "9M", "8Q", "TZ", "9H", "V7", "5T", "3B", "XA", "XB", "XC", "V6", "ER", "3A",
+	"JU", "4O", "CN", "C9", "XY", "XZ", "V5", "C2", "9N", "PH", "PJ", "ZK", "ZL", "ZM", "YN", "5U", "LN",
+	"AP", "SU", "E4", "HP", "P2", "ZP", "OB", "RP", "SP", "SN", "CR", "CS", "A7", "YR",
+	"RA", "RF", "V4", "J6", "J8", "5W", "T7", "S9", "HZ", "6V", "6W", "YU", "S7", "9L", "9V", "OM",
+	"S5", "H4", "6O", "ZS", "ZT", "ZU", "Z8", "EC", "4R", "ST", "PZ", "SE", "HB", "YK", "EY",
+	"5H", "HS", "5V", "A3", "9Y", "TS", "TC", "EZ", "T2", "5X", "UR", "A6", "4U", "CX",
 	"YJ", "VN", "7O", "9J", ""
 };
-const char *regpre3[] = { "A9C", "A4O", "9XR", "3DC", "" };
+
+const char *regpre3[] = {
+	"A9C", "A4O", "9XR", "3DC", ""
+};
 
 int verbose = 0;
 int station = 0;
@@ -51,32 +52,38 @@ int allmess = 0;
 int jsonformat = 0;
 int dupmess = 0;
 
-void fixreg(char *reg, char *add)
-{
-	char *p, *t;
+
+
+void fixreg(char *reg, char *add) {
+	char *p;
+	char *t;
 	int i;
-	for (p = add; *p == '.'; p++) ;
+
+	for (p = add; *p == '.'; p++);
 
 	if (strlen(p) >= 4) {
 		t = NULL;
-		for (i = 0; regpre3[i][0] != 0; i++)
+		for (i = 0; regpre3[i][0] != 0; i++) {
 			if (memcmp(p, regpre3[i], 3) == 0) {
 				t = p + 3;
 				break;
 			}
+		}
 		if (t == NULL) {
-			for (i = 0; regpre2[i][0] != 0; i++)
+			for (i = 0; regpre2[i][0] != 0; i++) {
 				if (memcmp(p, regpre2[i], 2) == 0) {
 					t = p + 2;
 					break;
 				}
+			}
 		}
 		if (t == NULL) {
-			for (i = 0; regpre1[i][0] != 0; i++)
+			for (i = 0; regpre1[i][0] != 0; i++) {
 				if (*p == regpre1[i][0]) {
 					t = p + 1;
 					break;
 				}
+			}
 		}
 		if (t && *t != '-') {
 			memcpy(reg, p, t - p);
@@ -90,12 +97,11 @@ void fixreg(char *reg, char *add)
 
 	strncpy(reg, p, 7);
 	reg[6] = 0;
-
 }
 
-static void processpkt(acarsmsg_t * msg, char *ipaddr)
-{
-	char *pr, *pf;
+static void processpkt(acarsmsg_t *msg, char *ipaddr) {
+	char *pr;
+	char *pf;
 	int lm;
 
 	pr = strtok(msg->reg, " ");
@@ -103,79 +109,67 @@ static void processpkt(acarsmsg_t * msg, char *ipaddr)
 	strtok(msg->no, " ");
 
 	lm = 0;
-	if (msg->mode < 0x5d && pr && pf)
+	if (msg->mode < 0x5d && pr && pf) {
 		lm = 1;
+	}
 
-	if ((lm || station) &&
-	    (allmess
-	     || (strcmp(msg->label, "Q0") != 0
-		 && strcmp(msg->label, "_d") != 0))
-	    )
+	if ((lm || station) && (allmess || (strcmp(msg->label, "Q0") != 0 && strcmp(msg->label, "_d") != 0))) {
 		lm = lm + 2;
+	}
 
-	if (dupmess)
+	if (dupmess) {
 		lm = lm + 4;
+	}
 
 	updatedb(msg, lm, ipaddr);
 }
 
-static char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen)
-{
+static char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen) {
 	switch (sa->sa_family) {
-	case AF_INET:
-		inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr), s,
-			  maxlen);
-		break;
+		case AF_INET:
+			inet_ntop(AF_INET, &(((struct sockaddr_in*)sa)->sin_addr), s, maxlen);
+			break;
 
-	case AF_INET6:
-		inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),
-			  s, maxlen);
-		break;
+		case AF_INET6:
+			inet_ntop(AF_INET6, &(((struct sockaddr_in6*)sa)->sin6_addr), s, maxlen);
+			break;
 
-	default:
-		strncpy(s, "Unknown AF", maxlen);
-		return NULL;
+		default:
+			strncpy(s, "Unknown AF", maxlen);
+			return NULL;
 	}
 
 	return s;
 }
 
-static void usage(void)
-{
-        fprintf(stderr,
-                "Acarsdec/acarsserv 4.0 Copyright (c) 2018 Thierry Leconte \n\n");
-	fprintf(stderr,
-		"Usage: acarsserv [-v][-N address:port | -j address:port ][-b database path][-s][-d][-a][-j]\n\n");
-	fprintf(stderr, "	-v		: verbose\n");
-	fprintf(stderr,
-		"	-b filepath	: use filepath as sqlite3 database file (default : ./acarsserv.sqb)\n");
-	fprintf(stderr,
-		"	-N address:port : listen binary format on given address:port (default : *:5555)\n");
-	fprintf(stderr,
-		"	-j address:port : listen json format on given address:port (default : *:5555)\n");
-	fprintf(stderr,
-		"	-s		: store acars messages comming from base station (default : don't store )\n");
-	fprintf(stderr,
-		"	-d		: store duplicate acars messages (default : don't store )\n");
-	fprintf(stderr,
-		"	-a		: store Q0 and _d (just pings and acks without data) acars messages (default : don't store )\n");
-	fprintf(stderr,
-		"	-j		: expect JSON input rather than classic acarsserv format\n");
+static void usage(void) {
+	fprintf(stderr, "\n\n\033[1macarsdec/acarsserv 4.0\033[0m\nCopyright (c) 2018 Thierry Leconte\n\n");
+	fprintf(stderr, "\033[1mUsage:\033[0m acarsserv [-v] [-N <address>:<port> | -j <address>:<port>] [-b <filepath>] [-s] [-d] [-a] [-j]\n\n");
+	fprintf(stderr, "\t\033[1m-v\033[0m                  : verbose\n");
+	fprintf(stderr, "\t\033[1m-b <filepath>\033[0m       : use <filepath> as sqlite3 database file (default: ./acarsserv.sqb)\n");
+	fprintf(stderr, "\t\033[1m-N <address>:<port>\033[0m : listen for binary format messages on given <address>:<port> (default: *:5555)\n");
+	fprintf(stderr, "\t\033[1m-j <address>:<port>\033[0m : listen for json format messages on given <address>:<port> (default: *:5555)\n");
+	fprintf(stderr, "\t\033[1m-s\033[0m                  : store acars messages comming from base station (default: don't store)\n");
+	fprintf(stderr, "\t\033[1m-d\033[0m                  : store duplicate acars messages (default: don't store)\n");
+	fprintf(stderr, "\t\033[1m-a\033[0m                  : store Q0 and _d (just pings and acks without data) acars messages (default: don't store)\n");
+	fprintf(stderr, "\t\033[1m-j\033[0m                  : expect JSON input rather than classic acarsserv format\n");
 	fprintf(stderr, "\n");
-
 }
 
 static int sockfd = -1;
-int bindsock(char *argaddr)
-{
+
+int bindsock(char *argaddr) {
 	char *bindaddr;
 	char *addr;
 	char *port;
-	struct addrinfo hints, *servinfo, *p;
+	struct addrinfo hints;
+	struct addrinfo *servinfo;
+	struct addrinfo *p;
 	int rv;
 
-	if (argaddr == NULL)
+	if (argaddr == NULL) {
 		return 0;
+	}
 
 	bindaddr = strdup(argaddr);
 
@@ -190,17 +184,18 @@ int bindsock(char *argaddr)
 		}
 		*port = 0;
 		port++;
-		if (*port != ':')
+		if (*port != ':') {
 			port = DFLTPORT;
-		else
+		} else {
 			port++;
+		}
 	} else {
 		hints.ai_family = AF_UNSPEC;
 		addr = bindaddr;
 		port = strstr(addr, ":");
-		if (port == NULL)
+		if (port == NULL) {
 			port = DFLTPORT;
-		else {
+		} else {
 			*port = 0;
 			port++;
 		}
@@ -209,14 +204,13 @@ int bindsock(char *argaddr)
 	hints.ai_socktype = SOCK_DGRAM;
 
 	if ((rv = getaddrinfo(addr, port, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "Invalid/unknown address %s\n", addr);
+		fprintf(stderr, "Invalid/unknown address: %s\n", addr);
 		return -1;
 	}
 
 	for (p = servinfo; p != NULL; p = p->ai_next) {
 		if ((sockfd =
-		     socket(p->ai_family, p->ai_socktype,
-			    p->ai_protocol)) == -1) {
+			 socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
 			continue;
 		}
 		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
@@ -224,53 +218,69 @@ int bindsock(char *argaddr)
 		}
 		break;
 	}
+
 	if (p == NULL) {
 		return -1;
 	}
 
 	freeaddrinfo(servinfo);
 	free(bindaddr);
+
 	return 0;
 }
 
+
 #define MAXACARSLEN 500
-int main(int argc, char **argv)
-{
+
+
+int main(int argc, char *argv[]) {
 	char pkt[MAXACARSLEN];
-	char *basename = "acarsserv.sqb";
-	char *bindaddr = "[::]";
+	char *basename = DFLTFILE;
+	char *bindaddr = DFLTADDR;
 	int c;
 	cJSON *json_obj;
 
-	while ((c = getopt(argc, argv, "vb:N:aj:sd")) != EOF) {
-
+	while ((c = getopt(argc, argv, "vb:N:aj:sd:hH?")) != EOF) {
 		switch (c) {
-		case 'v':
-			verbose = 1;
-			break;
-		case 'N':
-			jsonformat = 0;
-			bindaddr = optarg;
-			break;
-		case 'b':
-			basename = optarg;
-			break;
-		case 'a':
-			allmess = 1;
-			break;
-		case 'j':
-			jsonformat = 1;
-			bindaddr = optarg;
-			break;
-		case 's':
-			station = 1;
-			break;
-		case 'd':
-			dupmess = 1;
-			break;
-		default:
-			usage();
-			exit(1);
+			case 'v':
+				verbose = 1;
+				break;
+
+			case 'N':
+				jsonformat = 0;
+				bindaddr = optarg;
+				break;
+
+			case 'b':
+				basename = optarg;
+				break;
+
+			case 'a':
+				allmess = 1;
+				break;
+
+			case 'j':
+				jsonformat = 1;
+				bindaddr = optarg;
+				break;
+
+			case 's':
+				station = 1;
+				break;
+
+			case 'd':
+				dupmess = 1;
+				break;
+
+			case 'h':
+			case 'H':
+			case '?':
+				usage();
+				exit(0);
+
+			default:
+				usage();
+				exit(1);
 		}
 	}
 
@@ -280,7 +290,7 @@ int main(int argc, char **argv)
 	}
 
 	if (initdb(basename)) {
-		fprintf(stderr, "could not init sql base %s\n", basename);
+		fprintf(stderr, "could not initialize sqlite3 database: %s\n", basename);
 		exit(1);
 	}
 
@@ -299,10 +309,9 @@ int main(int argc, char **argv)
 		addrlen = sizeof(src_addr);
 		memset(&src_addr, 0, addrlen);
 		memset(pkt, 0, MAXACARSLEN);
-		len = recvfrom(sockfd, pkt, MAXACARSLEN, 0,
-			     (struct sockaddr *)&src_addr, &addrlen);
+		len = recvfrom(sockfd, pkt, MAXACARSLEN, 0, (struct sockaddr*)&src_addr, &addrlen);
 
-		get_ip_str((struct sockaddr *)&src_addr, ipaddr, INET6_ADDRSTRLEN);
+		get_ip_str((struct sockaddr*)&src_addr, ipaddr, INET6_ADDRSTRLEN);
 
 		if (!jsonformat) {
 			if (len <= 0) {
@@ -448,7 +457,7 @@ int main(int argc, char **argv)
 				cJSON_Delete(json_obj);
 				continue;
 			}
-			
+
 			// prefer frequency
 			if (cJSON_HasObjectItem(json_obj, "freq")) {
 				cJSON *j_freq = cJSON_GetObjectItem(json_obj, "freq");
@@ -469,7 +478,7 @@ int main(int argc, char **argv)
 				cJSON *j_error = cJSON_GetObjectItem(json_obj, "error");
 				msg->err = j_error->valueint;
 			}
-			
+
 			if (cJSON_HasObjectItem(json_obj, "mode")) {
 				cJSON *j_mode = cJSON_GetObjectItem(json_obj, "mode");
 				msg->mode = j_mode->valuestring[0];
@@ -484,7 +493,7 @@ int main(int argc, char **argv)
 				cJSON *j_text = cJSON_GetObjectItem(json_obj, "text");
 				strncpy(msg->txt, j_text->valuestring, 220);
 				msg->txt[220] = '\0';
-			} 
+			}
 
 			if (cJSON_HasObjectItem(json_obj, "block_id")) {
 				cJSON *j_blkid = cJSON_GetObjectItem(json_obj, "block_id");
@@ -518,10 +527,10 @@ int main(int argc, char **argv)
 		}
 		processpkt(msg, ipaddr);
 
-		if (verbose)
-			fprintf(stdout,
-				"MSG ip='%s' chan='%d' mode='%1c' reg='%s' ack='%1c' lbl='%2s' blk='%1c' msgno='%4s' flt='%6s' txt='%s'\n",
-				ipaddr, msg->chn, msg->mode, msg->reg, msg->ack, msg->label, msg->bid, msg->no, msg->fid, msg->txt);
+		if (verbose) {
+			fprintf(stdout, "MSG ip='%s' chan='%d' mode='%1c' reg='%s' ack='%1c' lbl='%2s' blk='%1c' msgno='%4s' flt='%6s' txt='%s'\n", ipaddr, msg->chn, msg->mode, msg->reg, msg->ack, msg->label, msg->bid, msg->no, msg->fid, msg->txt);
+		}
+
 out:
 		free(msg);
 	} while (1);
