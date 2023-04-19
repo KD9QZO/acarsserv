@@ -16,10 +16,6 @@
 #include "cJSON.h"
 
 
-#define DFLTFILE "acarsserv.sqb"
-#define DFLTADDR "[::]"
-#define DFLTPORT "5555"
-
 
 const char *regpre1[] = {
 	"C", "B", "F", "D", "2", "I", "P", "M", "G", "Z", ""
@@ -31,20 +27,21 @@ const char *regpre2[] = {
 	"PU", "V8", "LZ", "XT", "9U", "XU", "TJ", "D4", "TL", "TT", "CC", "HJ", "HK", "D6", "TN",
 	"E5", "9Q", "TI", "TU", "9A", "CU", "5B", "OK", "OY", "J2", "J7", "HI", "4W", "HC", "SU",
 	"YS", "3C", "E3", "ES", "ET", "DQ", "OH", "TR", "C5", "4L", "9G", "SX", "J3", "TG", "3X",
-	"J5", "8R", "HH", "HR", "HA", "TF", "VT", "PK", "EP", "YI", "EI", "EJ", "4X", "6Y", "ZJ", "JY", "Z6",
-	"UP", "5Y", "T3", "9K", "EX", "YL", "OD", "7P", "A8", "5A", "HB", "LY", "LX", "Z3",
-	"5R", "7Q", "9M", "8Q", "TZ", "9H", "V7", "5T", "3B", "XA", "XB", "XC", "V6", "ER", "3A",
-	"JU", "4O", "CN", "C9", "XY", "XZ", "V5", "C2", "9N", "PH", "PJ", "ZK", "ZL", "ZM", "YN", "5U", "LN",
-	"AP", "SU", "E4", "HP", "P2", "ZP", "OB", "RP", "SP", "SN", "CR", "CS", "A7", "YR",
-	"RA", "RF", "V4", "J6", "J8", "5W", "T7", "S9", "HZ", "6V", "6W", "YU", "S7", "9L", "9V", "OM",
-	"S5", "H4", "6O", "ZS", "ZT", "ZU", "Z8", "EC", "4R", "ST", "PZ", "SE", "HB", "YK", "EY",
-	"5H", "HS", "5V", "A3", "9Y", "TS", "TC", "EZ", "T2", "5X", "UR", "A6", "4U", "CX",
-	"YJ", "VN", "7O", "9J", ""
+	"J5", "8R", "HH", "HR", "HA", "TF", "VT", "PK", "EP", "YI", "EI", "EJ", "4X", "6Y", "ZJ",
+	"JY", "Z6", "UP", "5Y", "T3", "9K", "EX", "YL", "OD", "7P", "A8", "5A", "HB", "LY", "LX",
+	"Z3", "5R", "7Q", "9M", "8Q", "TZ", "9H", "V7", "5T", "3B", "XA", "XB", "XC", "V6", "ER",
+	"3A", "JU", "4O", "CN", "C9", "XY", "XZ", "V5", "C2", "9N", "PH", "PJ", "ZK", "ZL", "ZM",
+	"YN", "5U", "LN", "AP", "SU", "E4", "HP", "P2", "ZP", "OB", "RP", "SP", "SN", "CR", "CS",
+	"A7", "YR", "RA", "RF", "V4", "J6", "J8", "5W", "T7", "S9", "HZ", "6V", "6W", "YU", "S7",
+	"9L", "9V", "OM", "S5", "H4", "6O", "ZS", "ZT", "ZU", "Z8", "EC", "4R", "ST", "PZ", "SE",
+	"HB", "YK", "EY", "5H", "HS", "5V", "A3", "9Y", "TS", "TC", "EZ", "T2", "5X", "UR", "A6",
+	"4U", "CX", "YJ", "VN", "7O", "9J", ""
 };
 
 const char *regpre3[] = {
 	"A9C", "A4O", "9XR", "3DC", ""
 };
+
 
 int verbose = 0;
 int station = 0;
@@ -179,8 +176,8 @@ int bindsock(char *argaddr) {
 		addr = bindaddr + 1;
 		port = strstr(addr, "]");
 		if (port == NULL) {
-			fprintf(stderr, "Invalid IPV6 address\n");
-			return -1;
+			fprintf(stderr, "Invalid IPv6 address specified\n");
+			return (-1);
 		}
 		*port = 0;
 		port++;
@@ -205,7 +202,7 @@ int bindsock(char *argaddr) {
 
 	if ((rv = getaddrinfo(addr, port, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "Invalid/unknown address: %s\n", addr);
-		return -1;
+		return (-1);
 	}
 
 	for (p = servinfo; p != NULL; p = p->ai_next) {
@@ -220,7 +217,7 @@ int bindsock(char *argaddr) {
 	}
 
 	if (p == NULL) {
-		return -1;
+		return (-1);
 	}
 
 	freeaddrinfo(servinfo);
@@ -285,15 +282,17 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (bindsock(bindaddr)) {
-		fprintf(stderr, "failed to connect\n");
-		exit(1);
+		fprintf(stderr, "Failed to bind to specified network address: %s\n", bindaddr);
+		exit(2);
 	}
 
 	if (initdb(basename)) {
-		fprintf(stderr, "could not initialize sqlite3 database: %s\n", basename);
-		exit(1);
+		fprintf(stderr, "Failed to initialize sqlite3 database: %s\n", basename);
+		exit(3);
 	}
 
+
+	/* -----( MAIN PROGRAM LOOP )----- */
 	do {
 		int len;
 		acarsmsg_t *msg;
@@ -314,7 +313,8 @@ int main(int argc, char *argv[]) {
 
 		get_ip_str((struct sockaddr*)&src_addr, ipaddr, INET6_ADDRSTRLEN);
 
-		if (!jsonformat) {
+		/* Handle incoming messages from the network... */
+		if (!jsonformat) {					/* --- Handle binary-formatted messages --- */
 			if (len <= 0) {
 				fprintf(stderr, "read %d\n", len);
 				continue;
@@ -323,71 +323,83 @@ int main(int argc, char *argv[]) {
 			if (len < 31) {
 				continue;
 			}
+
 			pkt[len] = 0;
 
 			mpt = pkt;
 			bpt = mpt + 8;
 			if (*bpt != ' ')
 				continue;
+
 			*bpt = '\0';
 			strcpy(msg->idst, mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 1;
 			if (*bpt != ' ')
 				continue;
+
 			*bpt = '\0';
 			msg->chn = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
 			if (*bpt != '/')
 				continue;
+
 			*bpt = '\0';
 			tmp.tm_mday = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
 			if (*bpt != '/')
 				continue;
+
 			*bpt = '\0';
 			tmp.tm_mon = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 4;
 			if (*bpt != ' ')
 				continue;
+
 			*bpt = '\0';
 			tmp.tm_year = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
 			if (*bpt != ':')
 				continue;
+
 			*bpt = '\0';
 			tmp.tm_hour = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
 			if (*bpt != ':')
 				continue;
+
 			*bpt = '\0';
 			tmp.tm_min = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
 			if (*bpt != ' ')
 				continue;
+
 			*bpt = '\0';
 			tmp.tm_sec = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 1;
 			if (*bpt != ' ')
 				continue;
+
 			msg->err = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 3;
 			if (*bpt != ' ')
 				continue;
+
 			*bpt = '\0';
 			msg->lvl = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 1;
 			if (*bpt != ' ')
 				continue;
+
 			*bpt = '\0';
 			msg->mode = *mpt;
 			mpt = bpt + 1;
@@ -436,7 +448,7 @@ int main(int argc, char *argv[]) {
 			tmp.tm_mon -= 1;
 			tmp.tm_year -= 1900;
 			msg->tm = timegm(&tmp);
-		} else {
+		} else {							/* --- Handle JSON-formatted messages --- */
 			json_obj = cJSON_Parse(pkt);
 			if (json_obj == NULL) {
 				goto out;
@@ -526,6 +538,8 @@ int main(int argc, char *argv[]) {
 
 			cJSON_Delete(json_obj);
 		}
+
+		/* Process the received binary or JSON format packet... */
 		processpkt(msg, ipaddr);
 
 		if (verbose) {

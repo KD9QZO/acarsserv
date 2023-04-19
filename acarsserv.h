@@ -7,6 +7,18 @@
 #define ACARSSERV_H_
 
 
+
+/*! \brief The default filename for the sqlite3 database */
+#define DFLTFILE "acarsserv.sqb"
+
+/*! \brief The default network address on which acarsserv shall listen (all IPv4/IPv6) */
+#define DFLTADDR "[::]"
+
+/*! \brief The default TCP port on which acarsserv shall listen */
+#define DFLTPORT "5555"
+
+
+
 /**
  * \brief Data structure defining the contents of an ACARS message
  */
