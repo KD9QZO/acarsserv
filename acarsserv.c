@@ -15,6 +15,8 @@
 #include "acarsserv.h"
 #include "cJSON.h"
 
+#include "gitversion.h"
+
 
 
 const char *regpre1[] = {
@@ -60,12 +62,14 @@ void fixreg(char *reg, char *add) {
 
 	if (strlen(p) >= 4) {
 		t = NULL;
+
 		for (i = 0; regpre3[i][0] != 0; i++) {
 			if (memcmp(p, regpre3[i], 3) == 0) {
 				t = p + 3;
 				break;
 			}
 		}
+
 		if (t == NULL) {
 			for (i = 0; regpre2[i][0] != 0; i++) {
 				if (memcmp(p, regpre2[i], 2) == 0) {
@@ -74,6 +78,7 @@ void fixreg(char *reg, char *add) {
 				}
 			}
 		}
+
 		if (t == NULL) {
 			for (i = 0; regpre1[i][0] != 0; i++) {
 				if (*p == regpre1[i][0]) {
@@ -82,6 +87,7 @@ void fixreg(char *reg, char *add) {
 				}
 			}
 		}
+
 		if (t && *t != '-') {
 			memcpy(reg, p, t - p);
 			reg[t - p] = 0;
@@ -95,6 +101,7 @@ void fixreg(char *reg, char *add) {
 	strncpy(reg, p, 7);
 	reg[6] = 0;
 }
+
 
 static void processpkt(acarsmsg_t *msg, char *ipaddr) {
 	char *pr;
@@ -121,6 +128,7 @@ static void processpkt(acarsmsg_t *msg, char *ipaddr) {
 	updatedb(msg, lm, ipaddr);
 }
 
+
 static char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen) {
 	switch (sa->sa_family) {
 		case AF_INET:
@@ -139,11 +147,60 @@ static char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen) {
 	return s;
 }
 
+
+const char program_name[] = "acarsserv";
+
+struct copyright_data {
+	const char copyright_name[50];
+	const int copyright_year;
+	const char copyright_notes[80];
+};
+
+struct copyright_data copyright_1 = {
+	.copyright_name = "Gerad Munsch [KD9QZO]",
+	.copyright_year = 2023,
+	.copyright_notes = "All rights reserved."
+};
+
+struct copyright_data copyright_2 = {
+	.copyright_name = "Thierry Leconte",
+	.copyright_year = 2018,
+	.copyright_notes = "All rights reserved."
+};
+
+const int program_version_major = 4;
+const int program_version_minor = 0;
+const int program_version_patch = 1;
+
+extern const char *program_version_gitversion;
+
+static void gen_version_string(int major, int minor, int patch, const char *git_version, char *verstring) {
+	sprintf(verstring, "%u.%u.%u-%s", major, minor, patch, git_version);
+}
+
+static void gen_compile_info(char *buildstring) {
+	sprintf(buildstring, "%s %s\n", __DATE__, __TIME__);
+}
+
 static void usage(void) {
-	fprintf(stderr, "\n\n\033[1macarsdec/acarsserv 4.0\033[0m\nCopyright (c) 2018 Thierry Leconte\n\n");
-	fprintf(stderr, "\033[1mUsage:\033[0m acarsserv [-v] [-N <address>:<port> | -j <address>:<port>] [-b <filepath>] [-s] [-d] [-a] [-j]\n\n");
+	char version_string[50];
+	char compile_string[50];
+
+	gen_version_string(program_version_major, program_version_minor, program_version_patch, program_version_gitversion, version_string);
+	gen_compile_info(compile_string);
+
+	fprintf(stderr, "\n\n\033[1m%s\033[0m \033[2m%s\033[0m\n", program_name, version_string);
+	fprintf(stderr, "\n\033[33;1mBuilt:\033[0m \033[33m%s\033[0m\n", compile_string);
+#if 0
+	fprintf(stderr, "Copyright (c) 2018 Thierry Leconte\n\n");
+#else
+	fprintf(stderr, "Copyright (c) %u %s %s\n", copyright_1.copyright_year, copyright_1.copyright_name, copyright_1.copyright_notes);
+	fprintf(stderr, "Copyright (c) %u %s %s\n", copyright_2.copyright_year, copyright_2.copyright_name, copyright_2.copyright_notes);
+	fprintf(stderr, "\n\n");
+#endif
+	fprintf(stderr, "\033[4;1mUsage:\033[0m \033[1macarsserv\033[0m [-v] [-N <address>:<port> | -j <address>:<port>] [-b <filepath>] [-s] [-d] [-a] [-j]\n\n");
 	fprintf(stderr, "\t\033[1m-v\033[0m                  : verbose\n");
-	fprintf(stderr, "\t\033[1m-b <filepath>\033[0m       : use <filepath> as sqlite3 database file (default: ./acarsserv.sqb)\n");
+	fprintf(stderr, "\t\033[1m-b <filepath>\033[0m       : use \033[32m<filepath>\033[0m as sqlite3 database file \033[2m(default: ./acarsserv.sqb)\033[0m\n");
 	fprintf(stderr, "\t\033[1m-N <address>:<port>\033[0m : listen for binary format messages on given <address>:<port> (default: *:5555)\n");
 	fprintf(stderr, "\t\033[1m-j <address>:<port>\033[0m : listen for json format messages on given <address>:<port> (default: *:5555)\n");
 	fprintf(stderr, "\t\033[1m-s\033[0m                  : store acars messages comming from base station (default: don't store)\n");
@@ -328,114 +385,137 @@ int main(int argc, char *argv[]) {
 
 			mpt = pkt;
 			bpt = mpt + 8;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
 
 			*bpt = '\0';
 			strcpy(msg->idst, mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 1;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
 
 			*bpt = '\0';
 			msg->chn = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
-			if (*bpt != '/')
+			if (*bpt != '/') {
 				continue;
+			}
 
 			*bpt = '\0';
 			tmp.tm_mday = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
-			if (*bpt != '/')
+			if (*bpt != '/') {
 				continue;
+			}
 
 			*bpt = '\0';
 			tmp.tm_mon = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 4;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
 
 			*bpt = '\0';
 			tmp.tm_year = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
-			if (*bpt != ':')
+			if (*bpt != ':') {
 				continue;
+			}
 
 			*bpt = '\0';
 			tmp.tm_hour = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
-			if (*bpt != ':')
+			if (*bpt != ':') {
 				continue;
+			}
 
 			*bpt = '\0';
 			tmp.tm_min = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 2;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
 
 			*bpt = '\0';
 			tmp.tm_sec = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 1;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
 
 			msg->err = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 3;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
 
 			*bpt = '\0';
 			msg->lvl = atoi(mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 1;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
 
 			*bpt = '\0';
 			msg->mode = *mpt;
 			mpt = bpt + 1;
 			bpt = mpt + 7;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
+
 			*bpt = '\0';
 			strcpy(reg, mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 1;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
+
 			*bpt = '\0';
 			msg->ack = *mpt;
 			mpt = bpt + 1;
 			bpt = mpt + 2;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
+
 			*bpt = '\0';
 			strcpy(msg->label, mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 1;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
+
 			*bpt = '\0';
 			msg->bid = *mpt;
 			mpt = bpt + 1;
 			bpt = mpt + 4;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
+
 			*bpt = '\0';
 			strcpy(msg->no, mpt);
 			mpt = bpt + 1;
 			bpt = mpt + 6;
-			if (*bpt != ' ')
+			if (*bpt != ' ') {
 				continue;
+			}
+
 			*bpt = '\0';
 			strcpy(msg->fid, mpt);
 			mpt = bpt + 1;
@@ -542,6 +622,9 @@ int main(int argc, char *argv[]) {
 		/* Process the received binary or JSON format packet... */
 		processpkt(msg, ipaddr);
 
+		/* ---------------------------------- *
+		 *   PRINT VERBOSE OUTPUT TO STDOUT   *
+		 * ---------------------------------- */
 		if (verbose) {
 			fprintf(stdout, "MSG ip='%s' chan='%d' mode='%1c' reg='%s' ack='%1c' lbl='%2s' blk='%1c' msgno='%4s' flt='%6s' txt='%s'\n", ipaddr, msg->chn, msg->mode, msg->reg, msg->ack, msg->label, msg->bid, msg->no, msg->fid, msg->txt);
 		}
