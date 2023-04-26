@@ -1,18 +1,35 @@
+/**
+ * \file dbmgn.c
+ * \brief Implementation of the sqlite3 database management functions
+ */
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <sqlite3.h>
+
 #include "acarsserv.h"
 
 
+
+/**
+ * \brief Create an sqlite3 databae object for the ACARS database
+ */
 static sqlite3 *acarsdb;
 
 
 #define NBTRANS 10
 
+
 static sqlite3_stmt *stm[NBTRANS];
 
+
+/**
+ * \name Definitions of SQL statement order for database initiaization
+ *
+ * @{
+ */
 
 #define TBT 0
 #define TET 1
@@ -25,8 +42,22 @@ static sqlite3_stmt *stm[NBTRANS];
 #define TSELST 8
 #define TINSST 9
 
+/**
+ * @}
+ */
 
 
+/**
+ * \brief Initialize a newly-created sqlite3 database for use with acarsserv
+ *
+ * \param[in]	dbname	The name of the database that is to be created
+ *
+ * \return Indicates whether the initialization of the database was successful (or not).
+ * \retval	0	The database was initialized successfully
+ * \retval	1	A failure occurred while opening the database \p dbname
+ * \retval	2	A failure occurred while creating the tables in the database
+ * \retval	3	A failure occurred while preparing SQL statements
+ */
 int initdb(char *dbname) {
 	int res;
 	int i;
@@ -36,7 +67,7 @@ int initdb(char *dbname) {
 
 	res = sqlite3_open(dbname, &acarsdb);
 	if (res != SQLITE_OK) {
-		fprintf(stderr, "Failed to open database %s (%s)\n", dbname,sqlite3_errstr(res));
+		fprintf(stderr, "Failed to open database %s (%s)\n", dbname, sqlite3_errstr(res));
 		return 1;
 	}
 
@@ -58,16 +89,17 @@ int initdb(char *dbname) {
 			"CREATE TABLE IF NOT EXISTS Stations (StID integer primary key,  IdStation varchar, IpAddr varchar );"
 			"CREATE TABLE IF NOT EXISTS Messages (MessageID integer primary key, FlightID integer not null , Time datetime, StID integer, Channel integer , Error integer, SignalLvl integer, Mode char , Ack char , Label char(2), BlockNo char , MessNo char(4) , Txt varchar(250));",
 			NULL, NULL, NULL);
+
 	if (res != SQLITE_OK) {
-		fprintf(stderr, "Failed to create tables (%s)\n",sqlite3_errstr(res));
-		return 1;
+		fprintf(stderr, "Failed to create tables (%s)\n", sqlite3_errstr(res));
+		return 2;
 	}
 
 	for (i = 0; i < NBTRANS; i++) {
 		res = sqlite3_prepare_v2(acarsdb, sql[i], -1, &(stm[i]), NULL);
 		if (res != SQLITE_OK) {
-			fprintf(stderr, "Failed to preprare %s (%s)\n", sql[i],sqlite3_errstr(res));
-			return 1;
+			fprintf(stderr, "Failed to preprare %s (%s)\n", sql[i], sqlite3_errstr(res));
+			return 3;
 		}
 	}
 
@@ -94,8 +126,7 @@ static sqlite3_int64 updatedb_st(char *ipaddr, char *idst, sqlite3_int64 *sidp) 
 		return 0;
 	}
 
-	res =
-	    sqlite3_bind_text(stm[TSELST], 2, idst, strlen(idst), SQLITE_TRANSIENT);
+	res = sqlite3_bind_text(stm[TSELST], 2, idst, strlen(idst), SQLITE_TRANSIENT);
 	if (res != SQLITE_OK) {
 		fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 		return 0;
@@ -103,22 +134,19 @@ static sqlite3_int64 updatedb_st(char *ipaddr, char *idst, sqlite3_int64 *sidp) 
 
 	res = sqlite3_step(stm[TSELST]);
 	if (res == SQLITE_DONE) {
-
 		res = sqlite3_reset(stm[TINSST]);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to reset (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
 
-		res =
-		    sqlite3_bind_text(stm[TINSST], 1, ipaddr, strlen(ipaddr), SQLITE_TRANSIENT);
+		res = sqlite3_bind_text(stm[TINSST], 1, ipaddr, strlen(ipaddr), SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
 
-		res =
-		    sqlite3_bind_text(stm[TINSST], 2, idst, strlen(idst), SQLITE_TRANSIENT);
+		res = sqlite3_bind_text(stm[TINSST], 2, idst, strlen(idst), SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
@@ -131,25 +159,26 @@ static sqlite3_int64 updatedb_st(char *ipaddr, char *idst, sqlite3_int64 *sidp) 
 		}
 		sid = sqlite3_last_insert_rowid(acarsdb);
 	} else if (res == SQLITE_ROW) {
-
 		sid = sqlite3_column_int64(stm[TSELST], 0);
-
 	} else {
 		fprintf(stderr, "step TSELST (%s)\n", sqlite3_errstr(res));
-		return 0;
+		return (0);
 	}
 
-	if (sidp)
+	if (sidp) {
 		*sidp = sid;
-	return 1;
+	}
+
+	return (1);
 }
 
 static sqlite3_int64 updatedb_fl(char *reg, char *fnum, time_t tm, sqlite3_int64 *fidp) {
 	int res;
 	sqlite3_int64 fid;
 
-	if (fidp)
+	if (fidp) {
 		*fidp = 0;
+	}
 
 	res = sqlite3_reset(stm[TSELFLG]);
 	if (res != SQLITE_OK) {
@@ -168,6 +197,7 @@ static sqlite3_int64 updatedb_fl(char *reg, char *fnum, time_t tm, sqlite3_int64
 		fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 		return 0;
 	}
+
 	res = sqlite3_bind_int(stm[TSELFLG], 3, (int)tm);
 	if (res != SQLITE_OK) {
 		fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
@@ -176,7 +206,6 @@ static sqlite3_int64 updatedb_fl(char *reg, char *fnum, time_t tm, sqlite3_int64
 
 	res = sqlite3_step(stm[TSELFLG]);
 	if (res == SQLITE_DONE) {
-
 		res = sqlite3_reset(stm[TINSFLG]);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to reset (%s)\n", sqlite3_errstr(res));
@@ -188,16 +217,19 @@ static sqlite3_int64 updatedb_fl(char *reg, char *fnum, time_t tm, sqlite3_int64
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_text(stm[TINSFLG], 2, fnum, strlen(fnum), SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_int(stm[TINSFLG], 3, (int)tm);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_step(stm[TINSFLG]);
 		if (res != SQLITE_DONE) {
 			fprintf(stderr, "step TINSFLG (%s)\n", sqlite3_errstr(res));
@@ -219,11 +251,13 @@ static sqlite3_int64 updatedb_fl(char *reg, char *fnum, time_t tm, sqlite3_int64
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_int(stm[TUPFLG], 2, (int)tm);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_step(stm[TUPFLG]);
 		if (res != SQLITE_DONE) {
 			fprintf(stderr, "step TUPFLG (%s)\n", sqlite3_errstr(res));
@@ -272,61 +306,73 @@ static int updatedb_ms(acarsmsg_t *msg, sqlite3_int64 fid, sqlite3_int64 sid, in
 			fprintf(stderr, "Failed to reset (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_int(stm[TINSMSG], 1, (int)fid);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_int(stm[TINSMSG], 2, msg->tm);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_int(stm[TINSMSG], 3, sid);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_int(stm[TINSMSG], 4, msg->chn);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_int(stm[TINSMSG], 5, msg->err);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_int(stm[TINSMSG], 6, msg->lvl);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_text(stm[TINSMSG], 7, &(msg->mode), 1, SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_text(stm[TINSMSG], 8, &(msg->ack), 1, SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_text(stm[TINSMSG], 9, msg->label, 2, SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_text(stm[TINSMSG], 10, &(msg->bid), 1, SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_text(stm[TINSMSG], 11, msg->no, 4, SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
 			return 0;
 		}
+
 		res = sqlite3_bind_text(stm[TINSMSG], 12, msg->txt, strlen(msg->txt), SQLITE_TRANSIENT);
 		if (res != SQLITE_OK) {
 			fprintf(stderr, "Failed to bind (%s)\n", sqlite3_errstr(res));
@@ -346,6 +392,9 @@ static int updatedb_ms(acarsmsg_t *msg, sqlite3_int64 fid, sqlite3_int64 sid, in
 	return 1;
 }
 
+/**
+ * \brief Update content in the database
+ */
 int updatedb(acarsmsg_t *msg, int lm, char *ipaddr) {
 	int res;
 	sqlite3_int64 fid;
